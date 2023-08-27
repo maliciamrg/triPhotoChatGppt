@@ -12,10 +12,21 @@ import java.util.List;
 class Photo {
     String nom;
     Date date;
+    String absolutePath;
 
-    public Photo(String nom, Date date) {
+
+    public Photo(String nom, Date date, String absolutePath) {
         this.nom = nom;
         this.date = date;
+        this.absolutePath = absolutePath;
+    }
+
+    public String getAbsolutePath() {
+        return absolutePath;
+    }
+
+    public void setAbsolutePath(String absolutePath) {
+        this.absolutePath = absolutePath;
     }
 }
 
@@ -101,6 +112,21 @@ public class ApplicationTriPhotosUI {
         frame.setVisible(true);
     }
 
+    private void collectPhotosFromFolder(File folder, List<Photo> photos, List<String> extensionsPermises) {
+        File[] files = folder.listFiles();
+
+        for (File file : files) {
+            if (file.isFile()) {
+                String fileExtension = getFileExtension(file).toLowerCase();
+                if (extensionsPermises.contains(fileExtension)) {
+                    photos.add(new Photo(file.getName(), new Date(file.lastModified()),file.getAbsolutePath()));
+                }
+            } else if (file.isDirectory()) {
+                collectPhotosFromFolder(file, photos, extensionsPermises); // Appel récursif pour les sous-répertoires
+            }
+        }
+    }
+
     private void trierEtDeplacerPhotos() throws ParseException, IOException {
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         SimpleDateFormat dateFormatDestination = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss");
@@ -117,14 +143,9 @@ public class ApplicationTriPhotosUI {
 
         List<Photo> photos = new ArrayList<>();
         List<String> extensionsPermises = Arrays.asList(
-                ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".avi", ".arw", ".mts", ".mov");
+                ".jpg", ".jpeg", ".png", ".mp4", ".avi", ".arw", ".mts", ".mov");
 
-        for (File file : files) {
-            String fileExtension = getFileExtension(file).toLowerCase(); // Convertir l'extension en minuscules
-            if (extensionsPermises.contains(fileExtension)) {
-                photos.add(new Photo(file.getName(), new Date(file.lastModified())));
-            }
-        }
+        collectPhotosFromFolder(sourceFolder, photos, extensionsPermises);
 
         Collections.sort(photos, Comparator.comparing(photo -> photo.date));
 
@@ -157,11 +178,11 @@ public class ApplicationTriPhotosUI {
             }
 
             for (Photo photo : groupe) {
-                File sourceFile = new File(sourceFolder, photo.nom);
+                File sourceFile = new File(photo.absolutePath);
 
                 // Obtenir la date et l'heure du fichier déplacé au format dateFormatDestination
                 Date dateFichierDeplace = new Date(sourceFile.lastModified());
-                String nomFichierDestination = dateFormatDestination.format(dateFichierDeplace) + "_" + photo.nom;
+                String nomFichierDestination = dateFormatDestination.format(dateFichierDeplace) + "_" + photo.absolutePath.toLowerCase().replace(photo.nom.toLowerCase(),"").replace(sourceField.getText().toLowerCase(),"").replaceAll("\\\\"," ").replaceAll(" ","_") + "_" + photo.nom;
 
                 File destinationFile = new File(sousRepertoire, nomFichierDestination);
                 if (dryRunCheckBox.isSelected()) { // Vérifie si le dry run est activé
